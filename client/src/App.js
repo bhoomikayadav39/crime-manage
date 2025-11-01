@@ -19,6 +19,8 @@ import PageNotFound from "scenes/protected/404page";
 //import Crimes from 'components/crimes';
 import Map from "scenes/map";
 import AddDetails from "scenes/crimeData/addDetails";
+import Feedback from "scenes/Feedback";
+import Contact from "scenes/Contact";
 function App() {
   const mode = useSelector((state) => state.global.mode);
   const theme = useMemo(() => createTheme(themeSettings(mode)), [mode]);
@@ -44,6 +46,8 @@ function App() {
               <Route path="/map" element={<Map />} />
               <Route path="/add" element={<AddDetails />} />
               <Route path="/*" element={<PageNotFound />} />
+              <Route path="/feedback" element={<Feedback/>}/>
+              <Route path="/contact" element={<Contact/>}/>
             </Route>
           </Routes>
         </ThemeProvider>
