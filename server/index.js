@@ -5,6 +5,7 @@ import cors from "cors";
 import dotenv from "dotenv";
 import helmet from "helmet";
 import morgan from "morgan";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
 import clientRoutes from "./routes/client.js";
 import generalRoutes from "./routes/general.js";
@@ -45,55 +46,125 @@ app.use("/user", userRouter);
 const PORT = process.env.PORT || 9000;
   
 /* CHATBOT ROUTE */
-app.post("/api/chat", (req, res) => {
-  const message = req.body.message?.toLowerCase() || "";
+// 🔑 ADD YOUR GEMINI API KEY
+const genAI = new GoogleGenerativeAI("AIzaSyAXkTzfPy70f4ECsqosRHVsl4TOofTuryA");
 
-  let reply = "";
+const model = genAI.getGenerativeModel({
+  model: "gemini-2.5-flash",
+});
 
-  // Hindi detection
-  const isHindi =
-    message.includes("कैसे") ||
-    message.includes("शिकायत") ||
-    message.includes("मदद") ||
-    message.includes("आपातकाल") ||
-    message.includes("sos");
 
-  if (!isHindi) {
-    // English Responses
-    if (message.includes("complaint") || message.includes("report")) {
-      reply =
-        "To file a complaint, go to the 'Report Crime' section. Fill in the details. Your identity can remain anonymous.";
-    } else if (message.includes("sos") || message.includes("emergency")) {
-      reply =
-        "If you are in immediate danger, press the SOS button or call local emergency services immediately.";
-    } else if (message.includes("how to use")) {
-      reply =
-        "You can use this app by chatting with me, filing complaints anonymously, using SOS in emergencies, and uploading suspect images if safe.";
-    } else if (message.includes("upload")) {
-      reply =
-        "You can upload suspect or criminal images in the Upload section. Please ensure your safety first.";
-    } else {
-      reply =
-        "I can help you file complaints, explain how to use the app, or guide you during emergencies.";
-    }
-  } else {
-    // Hindi Responses
-    if (message.includes("शिकायत")) {
-      reply =
-        "शिकायत दर्ज करने के लिए 'Report Crime' सेक्शन में जाएं। आपकी पहचान गुप्त रखी जाएगी।";
-    } else if (message.includes("आपातकाल") || message.includes("sos")) {
-      reply =
-        "अगर आप तुरंत खतरे में हैं, तो SOS बटन दबाएं या स्थानीय आपातकालीन नंबर पर कॉल करें।";
-    } else if (message.includes("कैसे")) {
-      reply =
-        "आप इस ऐप का उपयोग चैट करके, गुप्त शिकायत दर्ज करके और आपातकाल में SOS का उपयोग करके कर सकते हैं।";
-    } else {
-      reply =
-        "मैं आपकी शिकायत दर्ज करने और ऐप का उपयोग समझाने में मदद कर सकता हूँ। कृपया अपना प्रश्न लिखें।";
-    }
+// =====================================================
+// 🔥 YOUR APP DATA (CLEAN + STRUCTURED VERSION)
+// =====================================================
+const APP_CONTEXT = `
+SSLEOS (Smart Surveillance and Law Enforcement Optimization System) is an AI-based smart policing system.
+
+PROBLEM:
+Traditional policing relies on manual record keeping, delayed reporting, and lack of real-time data, leading to inefficiency and errors.
+
+SOLUTION:
+SSLEOS provides a digital, AI-powered platform to improve law enforcement efficiency, decision-making, and crime prevention.
+
+KEY FEATURES:
+
+1. FIR / Complaint Filing:
+- Users can file complaints online by providing basic details
+- Eliminates manual paperwork
+
+2. Missing Person Reporting:
+- Users can submit missing person details through a dedicated section
+
+3. Complaint Status Tracking:
+- Users can check status in dashboard:
+  - Pending
+  - Under Process
+  - Solved
+
+4. Crime Prediction:
+- Users can predict crime by entering state and year
+- Uses machine learning models to identify crime-prone areas
+
+5. Suspect Identification:
+- AI models analyze images to detect suspects
+
+6. SOS Emergency:
+- Users can send emergency alerts via SOS page
+
+7. Anonymous Feedback:
+- Users can submit feedback anonymously through feedback page
+
+8. Dashboard:
+- Users and police can monitor:
+  - Complaints
+  - Case status
+  - Reports
+
+9. Multilingual Chatbot:
+- Supports Hindi and English communication
+
+BENEFITS:
+- Reduces manual work
+- Improves accuracy
+- Enables real-time decision making
+- Enhances public safety
+`;
+// =====================================================
+// 🧠 SYSTEM RULES
+// =====================================================
+
+const SYSTEM_PROMPT = `
+You are an AI assistant for SSLEOS application.
+
+Language Rules:
+- If user writes in Hindi → reply in Hindi
+- If user writes in English → reply in English
+- If user writes in Hinglish → reply in Hinglish
+
+Scope Rules:
+- ONLY answer questions related to SSLEOS system
+
+If question is outside scope:
+"I can only answer questions related to this application."
+
+Response Style:
+- Simple
+- Clear
+- Step-by-step when needed
+- Helpful and user-friendly
+`;
+
+
+// =====================================================
+// 🚀 API ROUTE
+// =====================================================
+app.post("/api/chat", async (req, res) => {
+  try {
+    const userMessage = req.body.message;
+
+    // 🔥 FINAL PROMPT (MOST IMPORTANT PART)
+    const fullPrompt = `
+${SYSTEM_PROMPT}
+
+APPLICATION DETAILS:
+${APP_CONTEXT}
+
+User Question:
+${userMessage}
+`;
+
+    const result = await model.generateContent(fullPrompt);
+
+    const reply = result.response.text();
+
+    res.json({ reply });
+
+  } catch (error) {
+    console.error(error);
+    res.json({
+      reply: "❌ Server error. Please try again.",
+    });
   }
-
-  res.json({ reply });
 });
 
 mongoose

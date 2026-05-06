@@ -6,11 +6,48 @@ const Chatbot = () => {
   const [messages, setMessages] = useState([
     {
       role: "bot",
-      text: "👋 Welcome! Ask me how to file a complaint or use the app. (आप हिंदी में भी पूछ सकते हैं)",
+      text: "👋 Welcome! Ask me about complaints, SOS, or app usage. (Hindi / Hinglish supported)",
     },
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+
+  // 🎤 Speech Recognition
+  const SpeechRecognition =
+    window.SpeechRecognition || window.webkitSpeechRecognition;
+
+  const recognition = SpeechRecognition
+    ? new SpeechRecognition()
+    : null;
+
+  if (recognition) {
+    recognition.lang = "hi-IN";
+    recognition.continuous = false;
+  }
+
+  const startListening = () => {
+    if (!recognition) return alert("Voice not supported");
+
+    recognition.start();
+
+    recognition.onresult = (event) => {
+      const voiceText = event.results[0][0].transcript;
+      setInput(voiceText);
+    };
+  };
+
+  // 🔊 Text to Speech
+  const speak = (text) => {
+    const utterance = new SpeechSynthesisUtterance(text);
+
+    if (/[\u0900-\u097F]/.test(text)) {
+      utterance.lang = "hi-IN";
+    } else {
+      utterance.lang = "en-US";
+    }
+
+    window.speechSynthesis.speak(utterance);
+  };
 
   const sendMessage = async () => {
     if (!input.trim()) return;
@@ -31,6 +68,8 @@ const Chatbot = () => {
 
       const botMessage = { role: "bot", text: data.reply };
       setMessages((prev) => [...prev, botMessage]);
+
+      speak(data.reply); // 🔊 speak response
     } catch (err) {
       setMessages((prev) => [
         ...prev,
@@ -48,7 +87,7 @@ const Chatbot = () => {
         subtitle="Ask questions about filing complaints, SOS, or using the app"
       />
 
-      {/* Chat Container */}
+      {/* Chat */}
       <Box
         mt="2rem"
         sx={{
@@ -72,10 +111,6 @@ const Chatbot = () => {
                 msg.role === "user" ? "#2563eb" : "rgba(37,99,235,0.2)",
               color: msg.role === "user" ? "#000" : "#fff",
               marginLeft: msg.role === "user" ? "auto" : "0",
-              border:
-                msg.role === "bot"
-                  ? "1px solid rgba(37,99,235,0.4)"
-                  : "none",
             }}
           >
             {msg.text}
@@ -89,16 +124,12 @@ const Chatbot = () => {
         )}
       </Box>
 
-      {/* Input Section */}
-      <Box
-        mt="1rem"
-        display="flex"
-        gap="10px"
-      >
+      {/* Input */}
+      <Box mt="1rem" display="flex" gap="10px">
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder="Ask in English or Hindi..."
+          placeholder="Ask in English, Hindi or Hinglish..."
           style={{
             flex: 1,
             padding: "10px",
@@ -108,6 +139,22 @@ const Chatbot = () => {
             color: "#fff",
           }}
         />
+
+        {/* 🎤 Mic */}
+        <button
+          onClick={startListening}
+          style={{
+            padding: "10px",
+            borderRadius: "8px",
+            backgroundColor: "#22c55e",
+            border: "none",
+            cursor: "pointer",
+          }}
+        >
+          🎤
+        </button>
+
+        {/* Send */}
         <button
           onClick={sendMessage}
           style={{
